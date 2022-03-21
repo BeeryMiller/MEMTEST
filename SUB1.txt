@@ -1,0 +1,198 @@
+*
+* Subprogram BLWP Vectors
+*
+
+MYREG1 EQU >E000
+MYREG2 EQU >E020
+*MYREG5 EQU >E080
+*MYREG6 EQU >E0A0
+
+VDP0   EQU >F108
+VDP1   EQU >F10A
+VDP3   EQU >F10E
+
+SAVER0 DATA 0
+SAVR10 DATA 0
+
+VMWR   DATA MYREG1,VMWR0      VDP Multiple Write to Registers
+BOX    DATA MYREG2,BOX0       Fill a Rectangle
+
+*
+* Program Subroutines
+*
+
+*
+* SETVWA   Set VDP Write Address
+*
+
+SETVWA MOV  *R13,R0      Get VDP address
+       ORI  R0,>4000     Set write bit
+       JMP  SETVA1       Continue with routine
+
+
+*
+* SETVRA   Set VDP Read Address
+*
+
+SETVRA MOV  *R13,R0      Get VDP address
+
+SETVA1 MOV  @2(R13),R1   Get buffer pointer
+       MOV  @4(R13),R2   Get byte count
+       LIMI 0            No interrupts during VDP access
+
+SETVA2 MOV  R11,R10      Save return address
+       BL   @CMDEND      Wait for VDP to be ready
+
+SETVA3 SWPB R0           LSB goes first
+       MOVB R0,@VDP1     Write it
+       SWPB R0           MSB goes next
+       MOVB R0,@VDP1     Write it
+       B    *R10         Return to caller
+
+
+*
+* VMBW     VDP Multiple Byte Write
+*
+* Pass:    R0  VDP Address
+*          R1  CPU Data Address
+*          R2  Number of Bytes to Write
+*
+
+VMBW0  BL   @SETVWA      Set VDP write address
+       MOV  R2,R2        Zero byte count?
+       JEQ  VMBW2        Yes, Return to caller
+
+VMBW1  MOVB *R1+,@VDP0   No, Write a byte
+       DEC  R2           Any bytes left?
+       JNE  VMBW1        Yes, Write another
+
+VMBW2  RTWP              No, Return to caller
+
+
+*
+* VMBR     VDP Multiple Byte Read
+*
+* Pass:    R0  VDP Address
+*          R1  CPU Buffer Address
+*          R2  Number of Bytes to Read
+*
+
+VMBR0  BL   @SETVRA      Set VDP read address
+       MOV  R2,R2        Zero byte count?
+       JEQ  VMBR2        Yes, Return to caller
+
+VMBR1  MOVB @VDP0,*R1+   No, Read a byte
+       DEC  R2           Any bytes left?
+       JNE  VMBR1        Yes, Read another
+
+VMBR2  RTWP              No, Return to caller
+
+
+*
+* VMWR     VDP Multiple Write to Register
+*
+* Pass:    R0  Starting Register Number
+*          R1  CPU Data Address
+*          R2  Number of Registers to Write to
+*
+
+VMWR0  MOV  *R13,R0      Get starting register
+       ORI  R0,>9100     Add on register 17
+       MOV  R10,@SAVR10  Save R10 (for CHAR)
+       BL   @SETVA1      Set up starting register
+       MOV  @SAVR10,R10  Restore R10
+       MOV  R2,R2        Zero byte count?
+       JEQ  VMWR2        Yes, Return
+
+VMWR1  MOVB *R1+,@VDP3   No, Send a byte
+       DEC  R2           Any more bytes left?
+       JNE  VMWR1        Yes, Send another
+
+VMWR2  RTWP              No, Return to caller
+
+
+*
+* CMDEND   Waits for a VDP Command to Finish
+*
+
+CMDEND MOV  R0,@SAVER0   Save contents of R0
+
+CMDEN1 LI   R0,>028F     Set up to read status reg 2
+       MOVB R0,@VDP1     Write LSB first
+       SWPB R0           Get at the MSB
+       MOVB R0,@VDP1     Write MSB to register 15
+       SWPB R0           Waste some time
+       MOVB @VDP1,R0     Get status register 2 data
+       SRL  R0,9         Is CE bit set?
+       JOC  CMDEN1       Yes, Command not finished yet
+
+       MOV  @SAVER0,R0   No, Restore R0 data
+       RT                Return to caller
+
+
+*
+* DOCMD    Executes a VDP Command
+*
+* Pass:    R3  X
+*          R4  Y
+*          R5  Width
+*          R6  Height
+*          R7  MSB  Color
+*              LSB  Flags
+*          R8  MSB  Command
+*
+
+DOCMD  SWPB R3           Swap X for VDP
+       SWPB R4           Swap Y for VDP
+       SWPB R5           Swap width for VDP
+       SWPB R6           Swap height for VDP
+
+DOCMD1 LI   R0,>0024     Starting VDP register
+       LI   R1,MYREG2+6  Address of data (R3)
+       LI   R2,11        Number of bytes to write
+       BLWP @VMWR        Execute fill command
+       RT                Return to caller
+
+
+*
+* SETREG   Get Values for VDP Registers
+*
+* Return:  R3  X
+*          R4  Y
+*          R5  Width
+*          R6  Height
+*          R7  MSB  Color
+*              LSB  00
+*
+
+SETREG MOV  R13,R12      Get workspace pointer
+       MOV  *R12+,R3     Get X
+       MOV  *R12+,R4     Get Y
+       MOV  *R12+,R5     Get Width
+       MOV  *R12+,R6     Get Height
+       CLR  R7           Clear flags byte
+       MOVB *R12,R7      Get color code
+       RT                Return to caller
+
+
+*
+* BOX      Fills in a Rectangular Area
+*
+* Pass:    R0  Upper Left X
+*          R1  Upper Left Y
+*          R2  Width
+*          R3  Height
+*          R4  MSB  Color Code
+*
+
+BOX0   LI   R8,>C000     High Speed VDP to VRAM move
+
+BOX1   BL   @SETREG      Set up VDP registers
+       MOV  R7,R12       Copy color code
+       SLA  R12,4        Put it in high nybble
+       AB   R12,R7       Duplicate code in low nybble
+       BL   @DOCMD       Draw the box
+       RTWP              Return to caller
+
+
+

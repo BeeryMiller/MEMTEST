@@ -1,0 +1,40 @@
+* MEMORY TESTER
+* Code below contributed by WILLSY on AtariAge
+
+* Address to test should be in R0
+
+MEMCHK LI   R1,8192      Number of bytes to test
+       SETO @NOPAGE      Flag if no page, clear to >0000 if good page
+NEXT   LI   R2,>AAAA     first test value
+       MOV  *R0,R3       Save the memory contents
+       MOV  R2,*R0       Load memory with first test value
+       MOV  *R0,R4       Read it back
+       C    R4,R2        Are they the same
+       JNE  BAD          If not, then jump
+       CLR  @NOPAGE      As long as first word passes, we have an 8K page there
+       SRC  R2,1         Change the test value (is now >5555)
+       MOV  R2,*R0       Load memory with test value
+       MOV  *R0,R4       Read it back
+       C    R4,R2        Are they the same
+       JNE  BAD1         If not, then jump
+       MOV  R3,*R0       restore the memory to previous contents
+       INCT R0           Move to next memory location
+       DECT R1           Finished?
+       JNE  NEXT
+       CLR  R0           passed all tests
+       B    *R11
+BAD    INC  @ERRORCOUNT  INCREMENT ERROR COUNTER
+       B    *R11
+BAD1   INC  @ERRORCOUNT  INCREMENT ERROR COUNTER
+       SETO @BADMEM      Flag for partial memory page
+       B    *R11         return to caller
+
+COPYLOOP
+       LI   R0,MEMCHK
+       LI   R1,>F000     On-board TMS9995 Ram
+       LI   R2,80        >F000 to F05F memory range
+LOOP   MOV  *R0+,*R1+
+       DEC  R2
+       JNE  LOOP
+       B    *R11
+
