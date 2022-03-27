@@ -1,5 +1,5 @@
                                      MEMTEST
-                                      V2.00
+                                      V2.60
 
 In the early 90's, Ron Walters created the first memory expansion card for the
 Geneve 9640.  He added a program with it's release, MEMTEST, written in 9640
@@ -8,21 +8,24 @@ released before he passed away.
 
 Ron had provided me with a modified version of the program as one of the first
 customers of the MEMEX that would run in a continuous loop retesting the memory
-for errors.  Unfortunately, over time, I lost my copy of that program.
+for errors.  Unfortunately over time, I lost my copy of that program.
 
 In 2020, I started rewriting in assembly language a new version of the program.
-I got sidetracked with other projects, and completed this release today.  This
+I got sidetracked with other projects, and completed this release.  This
 release does entail a few updates to the original design written by Ron Walters
 including a test for zero or one wait state memory along with identification of
 whether the Geneve is using the normal eprom or a PFM enhanced eprom.
 
-When loading the program, it will initially take about 30 seconds as it tests
-various memory pages for memory speeds to identify the hardware configuration.
+When loading the program, the program tests various memory pages to identify the
+hardware configuration.
+
 Once it has identified the memory configuration, MEMTEST will begin testing
 individual memory pages.  Non-existent or partial memory pages will be flagged
 along with the appropriate type of memory present.  Upon completion of the
 memory scan, the current available virtual memory map will be displayed over
-the pages.
+the pages. If a bad memory page is encountered, an ERROR count will increment
+and a line will be displayed on the screen identifying the last page where
+a memory error occured.
 
 Allowing the program to continue to run, the lower right corner will report
 identified errors and will keep track of the number of complete passes as it

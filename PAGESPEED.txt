@@ -1,127 +1,75 @@
-* Determine wait states for Genmod
-* Tests:
-* 00-3f
-* 40-7f
-* 80-bf
-* c0-e7
-* e8-eb
-* ec-ef
+* Determine wait states
+* Based on CRU timer
+*
+* Michael Zapf, March 2022
+* Code modified by Beery Miller to work with MEMTEST configuration
 
 
-PAGESTOTEST DATA >0040,>80C0,>E8EC       LIST OF PAGES TO BE TESTED AT STARTUP
 
+PAGESTOTEST  DATA >0040,>80C0,>E8EF
+PGLIST       DATA 0
+SPEEDPAGES   DATA 0,0,0
+SPEEDRESULT  DATA 0
 
-PGLIST      DATA 0             MEMORY PAGE TO TEST IN-PROCESS
-SPEEDPAGES  DATA 0,0,0         SPEED TEST RESULTS FROM PAGESTOTEST
-SPEEDRESULT DATA 0
+CRUSAV DATA 0
+CRUSET DATA >FFFF
 
-COUNT  BYTE >30,>30,':',>20
-
-STAR1  EQU  4802
-STAR2  EQU  624
+STAR1  EQU  500
 
 CODE   EQU  >F040
 
-PAGESPEEDRTN DATA 0
+* Test routine: Read byte from memory
+
+T01    LI   R1,STAR1
+T011   MOVB @>4000,R0
+       DEC  R1
+       JNE  T011
+T01E   RT
+
+
+PAGESPEEDRTN
+       DATA 0
 
 PAGESPEED
-
        MOV  R11,@PAGESPEEDRTN
+
+       MOV  @PGLIST,@>F112
 
        LWPI >F000
 
        LIMI 0
+       CLR  R12
+       STCR @CRUSAV,0
 
-       BL   @COPY
-       DATA T01,T01E
-
-       MOVB @PGLIST,R0
-       MOVB R0,@>F112
-
-       MOVB R0,R1
-       SRL  R1,12
-       MOVB @HEXDEC(R1),@COUNT
-       MOVB R0,R1
-       SLA  R1,4
-       SRL  R1,12
-       MOVB @HEXDEC(R1),@COUNT+1
-
-B1     BL   @GETTIM
-       MOV  R7,R14
-       BL   @CODE
-       BL   @GETTIM
-       S    R14,R7
-       SWPB R7
-       MOV  R7,@SPEEDRESULT
-       LIMI 2
-
-       LWPI WS
-
-       MOV  @PAGESPEEDRTN,R11
-       B    *R11
-
-
-*
-* Copy into on-chip RAM
-*
-COPY   MOV  *R11+,R0
-       MOV  *R11+,R2
+* Copy the routine into on-chip RAM
+       LI   R0,T01
+       LI   R2,T01E
        LI   R1,CODE
 C1     MOV  *R0+,*R1+
        C    R0,R2
        JLE  C1
-       RT
 
-* --------------------------------------------
-*   Test subprograms
-*   Must be transferred to PAD RAM (F030 - F0FF)
-* --------------------------------------------
 
-* Read byte from memory
+* Run the loops
+B1     LDCR @CRUSET,0
+       SBZ  0                Start the clock
+       BL   @CODE
+       SBO  0                Stop the clock, copy the counter
+       STCR R7,15
+       SRL  R7,1
+       LDCR @CRUSAV,0
 
-T01    LI   R2,STAR2
-T011   LI   R1,STAR1
-T012   MOVB @>4000,R0
-       DEC  R1
-       JNE  T012
-       DEC  R2
-       JNE  T011
-       RT
-T01E   DATA 0
+       LI   R1,>3000
+       CI   R7,>3FAD        * by experiment
+       JH   WS0
+       AI   R1,>0100
 
-*
-* GETTIM: Gets the time as seconds and tenths
-*         Returns time in R7
-*
-*         Uses R6-R10
-*
+WS0
+       LIMI 2
 
-GETTIM LI   R9,10
-       MOVB @>F135,R7   // digit for 10 m
-       SRL  R7,8
-       MPY  R9,R7
-       SLA  R8,8
-       AB   @>F134,R8
-       SRL  R8,8
-       MOV  R8,R7
-       LI   R9,60
-       MPY  R9,R7
-       MOV  R8,R10      // R10 has minutes as seconds
+       MOVB R1,@SPEEDRESULT
 
-       LI   R9,10
-       MOVB @>F133,R7   // digit for 10 s
-       SRL  R7,8        //
-       MPY  R9,R7       // *10  (-> R7,R8)
-       SLA  R8,8
-       AB   @>F132,R8   // digit for 1 s
-       SRL  R8,8
-       A    R10,R8      // add minutes as seconds
-       MOV  R8,R7
-       MPY  R9,R7       // R8 has seconds *10
-       MOVB @>F131,R6   // tenths
-       SRL  R6,8
-       A    R6,R8
-       MOV  R8,R7       // now in R7: seconds as tenths
-
-       RT
+       LWPI WS
+       MOV  @PAGESPEEDRTN,R11
+       B    *R11
 
