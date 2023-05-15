@@ -1,0 +1,75 @@
+* Determine wait states
+* Based on CRU timer
+*
+* Michael Zapf, March 2022
+* Code modified by Beery Miller to work with MEMTEST configuration
+
+
+
+PAGESTOTEST  DATA >0040,>80C0,>E8EF
+PGLIST       DATA 0
+SPEEDPAGES   DATA 0,0,0
+SPEEDRESULT  DATA 0
+
+CRUSAV DATA 0
+CRUSET DATA >FFFF
+
+STAR1  EQU  500
+
+CODE   EQU  >F040
+
+* Test routine: Read byte from memory
+
+T01    LI   R1,STAR1
+T011   MOVB @>4000,R0
+       DEC  R1
+       JNE  T011
+T01E   RT
+
+
+PAGESPEEDRTN
+       DATA 0
+
+PAGESPEED
+       MOV  R11,@PAGESPEEDRTN
+
+       MOV  @PGLIST,@>F112
+
+       LWPI >F000
+
+       LIMI 0
+       CLR  R12
+       STCR @CRUSAV,0
+
+* Copy the routine into on-chip RAM
+       LI   R0,T01
+       LI   R2,T01E
+       LI   R1,CODE
+C1     MOV  *R0+,*R1+
+       C    R0,R2
+       JLE  C1
+
+
+* Run the loops
+B1     LDCR @CRUSET,0
+       SBZ  0                Start the clock
+       BL   @CODE
+       SBO  0                Stop the clock, copy the counter
+       STCR R7,15
+       SRL  R7,1
+       LDCR @CRUSAV,0
+
+       LI   R1,>3000
+       CI   R7,>3FAD        * by experiment
+       JH   WS0
+       AI   R1,>0100
+
+WS0
+       LIMI 2
+
+       MOVB R1,@SPEEDRESULT
+
+       LWPI WS
+       MOV  @PAGESPEEDRTN,R11
+       B    *R11
+

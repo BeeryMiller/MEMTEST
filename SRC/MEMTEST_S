@@ -1,0 +1,1447 @@
+**************************************************************************
+* Code written to look similar to the original program written by Ron    *
+* Walters for testing the Geneve Memory.  Modifications have been added  *
+* to refine the types of memory that may be found for each user's unique *
+* configuration.                                                         *
+*                                                                        *
+* Written in 2022 by Beery Miller with contributions from multiple       *
+* individuals.  See !README file for additional information              *
+**************************************************************************
+
+WS     EQU  >E200
+
+MAIN3  LWPI WS           LET'S LOAD OUR WORKSPACE
+
+       LI   R0,QUIT      Control C Exit Routine
+       MOV  R0,@>00FE    Load the Vector for the exit
+
+       CLR  R0           Begin setting up for extra memory
+       XOP  @MEM,0       get free pages
+       CI   R1,3         want 3 pages for load
+       JL   BYBY         if fewer available, exit..
+       JMP  MEMOK
+
+
+BYBY   BL   @TTYOUT      memory error - report it!
+       DATA NOMEM,0
+       B    @QUIT
+
+MEMOK
+
+       CLR  R0           Setting up for MEMEX Splash Screen
+       LI   R1,>0009
+       XOP  @VID,0
+
+       SETO R1
+       LI   R2,2
+LQQP   DEC  R1
+       JNE  LQQP
+       DEC  R2
+       JNE  LQQP
+
+       LI   R1,0
+       MOV  R1,@VPAGE
+       LI   R1,64
+       MOV  R1,@XADR
+       LI   R1,54
+       MOV  R1,@YADR
+       LI   R1,128
+       MOV  R1,@NX
+       LI   R1,64
+       MOV  R1,@NY
+       LI   R1,LNA000
+       MOV  R1,@BUFADR
+*      MOVB @>F112,@MPAGE
+*      MOVB @>F112,@MPAGE+1
+
+       BL   @CPUVDP
+
+       CLR  @>F112       Clear word for later comparison
+
+       SETO R1
+       LI   R2,5
+LUUP   DEC  R1
+       JNE  LUUP
+       DEC  R2
+       JNE  LUUP
+
+       CLR  R0           Set graphics mode
+       LI   R1,>0008
+       XOP  @VID,0
+
+       LI   R0,0         Paint screen black
+       LI   R1,0
+       LI   R2,512
+       LI   R3,212
+       LI   R4,>0100
+       BLWP @BOX
+
+       LI   R0,>000C     Set border color
+       LI   R1,>0101
+       XOP  @VID,0
+
+       LI   R0,>0029     Set text color
+       LI   R1,>0F01
+       XOP  @VID,0
+
+       BL   @TTYOUT
+       DATA CLEARSCREEN,0
+
+       BL   @TTYOUT
+       DATA HORIZBAR,0
+
+       LI   R0,>0002
+       CLR  R1
+       CLR  R2
+       XOP  @VID,0
+
+       BL   @TTYOUT
+       DATA LOGO,0
+
+       LI   R0,>0025
+       LI   R1,1
+       LI   R2,8
+       LI   R3,3
+       LI   R4,40
+       XOP  @VID,0
+
+       LI   R0,>0025
+       LI   R1,5
+       LI   R2,3
+       LI   R3,23
+       LI   R4,3
+       XOP  @VID,0
+
+       BL   @TTYOUT
+       DATA VERTBAR,0
+
+       LI   R0,>0025
+       LI   R1,7
+       LI   R2,1
+       LI   R3,23
+       LI   R4,1
+       XOP  @VID,0
+
+       BL   @TTYOUT
+       DATA VERTBAR1,0
+
+       LI   R0,>0025
+       LI   R1,22
+       LI   R2,0
+       LI   R3,24
+       LI   R4,40
+       XOP  @VID,0
+
+       BL   @TTYOUT
+       DATA TOTALPAGES,0
+
+       BL   @PRODID      Test for PFM in Boot Eprom
+       MOV  R0,@PFMIDBWM flag 0 = eprom, <>0 = PFM
+
+**********
+
+       CLR  R0           SEE WHAT MEMORY TOTAL IS IN SYSTEM
+       XOP  @MEM,0
+       MOV  R1,@TOTALFREEPAGES
+       MOV  R2,@ZEROWAITPAGES
+       MOV  R3,@INSTALLEDPAGES
+
+       LI   R0,1         get pages (R1 holds number available for our use)
+       LI   R2,2         Starting at page >2000
+       CLR  R3           Any RAM is ok
+       XOP  @MEM,0       get the RAM
+
+       LI   R0,4         Get memory list
+       LI   R1,PGETBL    Location
+       LI   R2,256       Size
+       XOP  @MEM,0
+
+       LI   R0,>000F
+       LI   R1,FLOAT1
+       MOV  @INSTALLEDPAGES,R2
+       XOP  @MATH,0
+
+       LI   R0,>000F
+       LI   R1,FLOAT2
+       LI   R2,8192
+       XOP  @MATH,0
+
+       LI   R0,>0003
+       LI   R1,DESTINATION
+       LI   R2,FLOAT1
+       LI   R3,FLOAT2
+       XOP  @MATH,0
+
+       LI   R0,>0012
+       LI   R1,BYTESTRING
+       LI   R2,DESTINATION
+       CLR  R3
+       LI   R4,7
+       CLR  R5
+       XOP  @MATH,0
+
+       LI   R0,>000F
+       LI   R1,FLOAT1
+       MOV  @ZEROWAITPAGES,R2
+       XOP  @MATH,0
+
+       LI   R0,>0012
+       LI   R1,ZEROWAITSTRING
+       LI   R2,FLOAT1
+       CLR  R3
+       LI   R4,4
+       CLR  R5
+       XOP  @MATH,0
+
+       LI   R0,>000F
+       LI   R1,FLOAT1
+       MOV  @INSTALLEDPAGES,R2
+       XOP  @MATH,0
+
+       LI   R0,>0012
+       LI   R1,TOTALINSTALLSTRING
+       LI   R2,FLOAT1
+       CLR  R3
+       LI   R4,4
+       CLR  R5
+       XOP  @MATH,0
+
+       LI   R0,>000F
+       LI   R1,FLOAT1
+       MOV  @TOTALFREEPAGES,R2
+       XOP  @MATH,0
+
+       LI   R0,>0012
+       LI   R1,TOTALFREESTRING
+       LI   R2,FLOAT1
+       CLR  R3
+       LI   R4,4
+       CLR  R5
+       XOP  @MATH,0
+
+       LI   R0,>0025
+       LI   R1,22
+       LI   R2,11
+       LI   R3,22
+       LI   R4,21
+       XOP  @VID,0
+
+       BL   @TTYOUT
+       DATA TOTALINSTALLSTRING,4
+
+       LI   R0,>0025
+       LI   R1,23
+       LI   R2,11
+       LI   R3,23
+       LI   R4,21
+       XOP  @VID,0
+
+       BL   @TTYOUT
+       DATA TOTALFREESTRING,4
+
+       LI   R0,>0025
+       LI   R1,24
+       LI   R2,11
+       LI   R3,24
+       LI   R4,21
+       XOP  @VID,0
+
+       BL   @TTYOUT
+       DATA ZEROWAITSTRING,4
+
+       LI   R0,>0025
+       LI   R1,11
+       LI   R2,57
+       LI   R3,25
+       LI   R4,79
+       XOP  @VID,0
+
+       BL   @TTYOUT
+       DATA EXECUTIONPAGEMAP,0
+
+       LI   R0,>0025
+       LI   R1,22
+       LI   R2,29
+       LI   R3,24
+       LI   R4,79
+       XOP  @VID,0
+
+       BL   @TTYOUT
+       DATA TOTALCPUMEMORY,0
+
+       LI   R0,>0025
+       LI   R1,3
+       LI   R2,59
+       LI   R3,11
+       LI   R4,79
+       XOP  @VID,0
+
+       BL   @TTYOUT
+       DATA ONBOARDDRAM,0
+
+       LI   R0,>0025
+       LI   R1,0
+       LI   R2,21
+       LI   R3,4
+       LI   R4,79
+       XOP  @VID,0
+
+       BL   @TTYOUT
+       DATA MEMORYDIAGNOSTICS,0
+
+       LI   R0,>0025
+       LI   R1,22
+       LI   R2,57
+       LI   R3,24
+       LI   R4,79
+       XOP  @VID,0
+
+       BL   @TTYOUT
+       DATA STATUSLINE,0
+
+       LI   R0,>0025
+       LI   R1,13
+       LI   R2,69
+       LI   R3,20
+       LI   R4,70
+       XOP  @VID,0
+
+       BL   @PRTHEX
+       DATA >F110,1
+
+       BL   @PRTHEX
+       DATA >F111,1
+
+       BL   @PRTHEX
+       DATA >F112,1
+
+       BL   @PRTHEX
+       DATA >F113,1
+
+       BL   @PRTHEX
+       DATA >F114,1
+
+       BL   @PRTHEX
+       DATA >F115,1
+
+       BL   @PRTHEX
+       DATA >F116,1
+
+       BL   @PRTHEX
+       DATA >F117,1
+
+*      LI   R0,>0025
+*      LI   R1,13
+*      LI   R2,14
+*      LI   R3,15
+*      LI   R4,50
+*      XOP  @VID,0
+
+       LI   R0,PAGESTOTEST+0   TEST MEMORY PAGE  >00
+       MOVB *R0,@PGLIST
+       BL   @PAGESPEED
+       MOV  @SPEEDRESULT,R7
+       MOVB R7,@SPEEDPAGES+0
+
+       LI   R0,PAGESTOTEST+1   TEST MEMORY PAGE  >40
+       MOVB *R0,@PGLIST
+       BL   @PAGESPEED
+       MOV  @SPEEDRESULT,R7
+       MOVB R7,@SPEEDPAGES+1
+
+       CI   R7,>3000
+       JLE  E8FLAGSET
+       JMP  E8FLAGSET1
+
+E8FLAGSET
+
+       SETO @E8FLAG
+
+E8FLAGSET1
+
+       BL   @COPYLOOP
+       LI   R0,>4000
+       MOV  R0,@>F112
+       LIMI 0
+       LWPI >F060
+       LI   R0,>4000
+       BL   @>F000
+       LIMI 2
+       LWPI >E200
+       MOV  @NOPAGE,@NOPAGE
+       JNE  PG40FLAGTEST1
+
+       CLR  R7
+       MOVB @SPEEDRESULT+4,R7
+       CI   R7,>3000
+       JLE  PG40FLAGTEST2
+
+       LI   R0,>0701
+       MOV  R0,@O10+8
+       MOV  R0,@O11+8
+       MOV  R0,@O12+8
+       MOV  R0,@O13+8
+       MOV  R0,@O14+8
+       MOV  R0,@O15+8
+       MOV  R0,@O16+8
+       MOV  R0,@O17+8
+
+PG40FLAGTEST2
+       JMP  PG40FLAGTEST1
+
+PG40FLAGTEST1A
+
+       LI   R0,>0401
+       MOV  R0,@O10+8
+       MOV  R0,@O11+8
+       MOV  R0,@O12+8
+       MOV  R0,@O13+8
+       MOV  R0,@O14+8
+       MOV  R0,@O15+8
+       MOV  R0,@O16+8
+       MOV  R0,@O17+8
+
+PG40FLAGTEST1
+
+       BL   @COPYLOOP
+       LI   R0,>3A00
+       MOVB R0,@>F112
+       LIMI 0
+       LWPI >F060
+       LI   R0,>4000
+       BL   @>F000
+       LIMI 2
+       LWPI >E200
+       MOV  @NOPAGE,@NOPAGE
+       JEQ  PG3AFLAGTEST1
+
+       CLR  R1
+       MOVB @SPEEDRESULT,R1
+       CI   R1,>3000
+       JLE  SETEXTERNALRAM0
+
+SETEXTERNALRAM1
+       LI   R0,>0701
+       LI   R2,>40
+       LI   R3,A2+8
+SETEXTERNALRAM1A
+       MOV  R0,*R3
+       AI   R3,12
+       DEC  R2
+       JNE  SETEXTERNALRAM1A
+       JMP  PG3AFLAGTEST1
+
+SETEXTERNALRAM0
+       LI   R0,>0401
+       LI   R2,>40
+       LI   R3,A2+8
+SETEXTERNALRAM0A
+       MOV  R0,*R3
+       AI   R3,12
+       DEC  R2
+       JNE  SETEXTERNALRAM0A
+       JMP  PG3AFLAGTEST1
+
+       SETO @PG3AFLAG
+
+PG3AFLAGTEST1
+
+       LI   R0,PAGESTOTEST+2   TEST MEMORY PAGE  >80
+       MOVB *R0,@PGLIST
+       BL   @PAGESPEED
+       MOV  @SPEEDRESULT,R7
+       MOVB R7,@SPEEDPAGES+2
+
+       LI   R0,PAGESTOTEST+3   TEST MEMORY PAGE  >C0
+       MOVB *R0,@PGLIST
+       BL   @PAGESPEED
+       MOV  @SPEEDRESULT,R7
+       MOVB R7,@SPEEDPAGES+3
+
+       LI   R0,PAGESTOTEST+4   TEST MEMORY PAGE  >E8
+       MOVB *R0,@PGLIST
+       BL   @PAGESPEED
+       MOV  @SPEEDRESULT,R7
+       MOVB R7,@SPEEDPAGES+4
+
+       LI   R0,PAGESTOTEST+5   TEST MEMORY PAGE  >EC
+       MOVB *R0,@PGLIST
+       BL   @PAGESPEED
+       MOV  @SPEEDRESULT,R7
+       MOVB R7,@SPEEDPAGES+5
+
+***************************************************
+* For wait state status, if R7 = >6E, then 1 wait state
+* If R7 = >64, then 0 wait state
+*
+* Depending upon precise clock timing, we will allow 0 wait state if
+*  R7=>66
+*
+***************************************************
+
+       CLR  R7
+       MOVB @SPEEDPAGES+0,R7
+       CI   R7,>3000         0 WAIT STATE STATUS
+       JLE  WAITSTATE0       0 WAIT STATE
+       JMP  WAIT1
+WAITSTATE0
+       LI   R0,>40           COUNT OF PAGES TO CHANGE
+       LI   R1,A2+8
+WAITSTATE0A
+       LI   R2,>0401         NEW COLOR DESIGNATION
+       MOVB R2,*R1
+       AI   R1,12
+       DEC  R0
+       JNE  WAITSTATE0A
+WAIT1
+***************************************************
+       CLR  R7
+       MOVB @SPEEDPAGES+1,R7
+       CI   R7,>3000         0 WAIT STATE STATUS
+       JLE  WAITSTATE1       0 WAIT STATE
+       JMP  WAIT2
+WAITSTATE1
+       LI   R0,>40           COUNT OF PAGES TO CHANGE
+       LI   R1,E2+8
+WAITSTATE1A
+       LI   R2,>0401         NEW COLOR DESIGNATION
+       MOVB R2,*R1
+       AI   R1,12
+       DEC  R0
+       JNE  WAITSTATE1A
+WAIT2
+***************************************************
+       CLR  R7
+       MOVB @SPEEDPAGES+2,R7
+       CI   R7,>3000         0 WAIT STATE STATUS
+       JLE  WAITSTATE2       0 WAIT STATE
+       JMP  WAIT3
+WAITSTATE2
+       LI   R0,>40           COUNT OF PAGES TO CHANGE
+       LI   R1,I2+8
+WAITSTATE2A
+       LI   R2,>0401         NEW COLOR DESIGNATION
+       MOVB R2,*R1
+       AI   R1,12
+       DEC  R0
+       JNE  WAITSTATE2A
+WAIT3
+***************************************************
+       CLR  R7
+       MOVB @SPEEDPAGES+3,R7
+       CI   R7,>3000         0 WAIT STATE STATUS
+       JLE  WAITSTATE3       0 WAIT STATE
+       JMP  WAIT4
+WAITSTATE3
+       LI   R0,>38           COUNT OF PAGES TO CHANGE
+       LI   R1,M2+8
+WAITSTATE3A
+       LI   R2,>0401         NEW COLOR DESIGNATION
+       MOVB R2,*R1
+       AI   R1,12
+       DEC  R0
+       JNE  WAITSTATE3A
+WAIT4
+***************************************************
+
+       MOV  @PFMIDBWM,@PFMIDBWM
+       JEQ  WAIT7            EPROM, NOT PFM
+
+WAITSTATE6
+       LI   R0,14            COUNT OF PAGES TO CHANGE
+WAITSTATE6A
+       LI   R1,P4+8
+       LI   R2,>0D01         NEW COLOR DESIGNATION
+       MOVB R2,*R1
+       AI   R1,12
+       DEC  R0
+       JNE  WAITSTATE6A
+WAIT7
+
+*********************
+
+       CLR  @ERRORCOUNT      Clear errorcount before we start the real testing
+
+TESTKEY
+       LI   R0,>0025
+       LI   R1,24
+       LI   R2,69
+       LI   R3,24
+       LI   R4,72
+       XOP  @VID,0
+
+       INC  @PASSES
+
+       BL   @PRTHEX
+       DATA PASSES,2
+
+       BL   @COPYLOOP
+
+       LI   R8,6
+
+REPEATBOXA
+
+       MOV  R8,R6
+       SLA  R6,1
+
+       MOV  @DRAMSETUP(R6),R7
+
+       MOV  *R7+,R0
+       MOV  *R7+,R1
+       MOV  *R7+,R2
+       MOV  *R7+,R3
+       MOV  *R7+,R4
+       BLWP @BOX
+
+       BLWP @PAUSE
+
+       DEC  R8
+       JNE  REPEATBOXA
+
+       LI   R7,Q1
+       MOV  *R7+,R0
+       MOV  *R7+,R1
+       MOV  *R7+,R2
+       MOV  *R7+,R3
+       MOV  *R7+,R4
+       BLWP @BOX
+
+       BLWP @PAUSE
+
+********************
+
+       LI   R8,255
+
+REPEATBOX1
+
+       MOV  R8,R6
+       SLA  R6,1
+
+       MOV  @BOXCOORDINATES(R6),R7
+
+       MOV  *R7+,@R0STORE
+       MOV  *R7+,@R1STORE
+       MOV  *R7+,@R2STORE
+       MOV  *R7+,@R3STORE
+       MOV  *R7+,@R4STORE
+       MOV  *R7+,R5
+
+       SWPB R5
+       MOVB R5,@>F112
+
+       LI   R0,>0025
+       LI   R1,15
+       LI   R2,69
+       LI   R3,16
+       LI   R4,70
+       XOP  @VID,0
+
+       BL   @PRTHEX
+       DATA >F112,1
+
+       LIMI 0
+
+       LWPI >F060
+       LI   R0,>4000
+       BL   @>F000
+       LIMI 2
+
+       LWPI >E200
+
+       MOV  @R0STORE,R0
+       MOV  @R1STORE,R1
+       MOV  @R2STORE,R2
+       MOV  @R3STORE,R3
+       MOV  @R4STORE,R4
+
+       MOV  @NOPAGE,@NOPAGE      0 = page, >FFFF no page
+       JEQ  GOODPAGE
+
+       BL   @IDENTIFYPAGE
+
+       DEC  @ERRORCOUNT
+       CLR  @NOPAGE              clear for next page test
+GOODPAGE
+       MOV  @BADMEM,@BADMEM      0 = good mem, >FFFF for partial memory page
+       JEQ  GOODPAGE2
+
+       BL   @IDENTIFYPAGE
+
+       BLWP @BOX
+
+       BLWP @PAUSE
+
+       CLR  @BADMEM
+
+GOODPAGE2
+
+       BLWP @BOX
+
+GOODPAGE3
+
+       BLWP @PAUSE
+
+       LI   R0,>0025
+       LI   R1,15
+       LI   R2,69
+       LI   R3,16
+       LI   R4,70
+       XOP  @VID,0
+
+       BL   @PRTHEX
+       DATA >F112,1
+
+       LI   R0,>0025
+       LI   R1,23
+       LI   R2,69
+       LI   R3,23
+       LI   R4,72
+       XOP  @VID,0
+
+       BL   @PRTHEX
+       DATA ERRORCOUNT,2
+
+       DEC  R8
+
+       JEQ  REPEATBOX1A
+       B    @REPEATBOX1
+
+REPEATBOX1A
+       LI   R7,A2
+       MOV  *R7+,R0
+       MOV  *R7+,R1
+       MOV  *R7+,R2
+       MOV  *R7+,R3
+       MOV  *R7+,R4
+       MOV  *R7+,R5
+       SWPB R5
+       MOV  R5,@>F112
+       BLWP @BOX
+
+       LI   R0,>0025
+       LI   R1,15
+       LI   R2,69
+       LI   R3,16
+       LI   R4,70
+       XOP  @VID,0
+
+       CLR  @>F112
+
+       BL   @PRTHEX
+       DATA >F112,1
+
+       BLWP @PAUSE
+
+* NEED TO TEST THIS LAST PAGE OF MEMORY HERE
+
+MEMORYCHECK2
+
+       LIMI 0
+       LWPI >F060
+       LI   R0,>4000
+       BL   @>F000
+       LIMI 2
+       LWPI >E200
+
+       LI   R0,>0025
+       LI   R1,23
+       LI   R2,69
+       LI   R3,23
+       LI   R4,72
+       XOP  @VID,0
+
+       BL   @PRTHEX
+       DATA ERRORCOUNT,2
+
+       BLWP @MAPMEMORY
+       SETO @FLAGFIRSTPASS
+
+       B    @TESTKEY
+
+KEYWS  EQU  >F800
+PAUSE  DATA KEYWS,PAUSE1
+
+PAUSE1
+       LI   R0,>0005     BASIC KEYBOARD MODE
+       XOP  @KEY,0
+       JNE  PAUSE4
+       SRL  R1,8
+       CI   R1,>009B
+       JNE  PAUSE2
+       B    @QUIT
+PAUSE2
+       CI   R1,>0020
+       JNE  PAUSE4
+PAUSE3
+       LI   R0,>0005
+       XOP  @KEY,0
+       JNE  PAUSE3
+PAUSE4
+       RTWP
+
+
+IDENTIFYPAGE
+       MOV  @>F112,R10
+       CI   R10,>F101
+       JLE  IDENTIFYPAGE0
+       MOV  @PFMIDBWM,@PFMIDBWM
+       JEQ  IDENTIFYPAGE0
+       B    *R11
+IDENTIFYPAGE0
+       CB   @CBHF0,@>F112
+       JNE  IDENTIFYPAGE1
+       MOV  @MAGENTA,R4
+       DECT R7
+       DECT R7
+       MOV  @MAGENTA,*R7+
+       INCT R7
+       JMP  IDENTIFYPAGEEXIT
+IDENTIFYPAGE1
+       CB   @CBHF1,@>F112
+       JNE  IDENTIFYPAGE2
+       MOV  @MAGENTA,R4
+       DECT R7
+       DECT R7
+       MOV  @MAGENTA,*R7+
+       INCT R7
+       JMP  IDENTIFYPAGEEXIT
+IDENTIFYPAGE2
+       MOV  @BADMEM,@BADMEM
+       JEQ  IDENTIFYPAGE2A
+       MOV  @WHITE,R4
+       DECT R7
+       DECT R7
+       MOV  @WHITE,*R7+
+       INCT R7
+       BLWP @BADREPORT
+       B    *R11
+
+IDENTIFYPAGE2A
+       MOV  @RED,R4
+       DECT R7
+       DECT R7
+       MOV  @RED,*R7+
+IDENTIFYPAGEEXIT
+       INCT R7
+       B    *R11
+
+BADWS  EQU  >E500
+
+BADREPORT DATA BADWS,BADREPORT1
+
+BADREPORT1
+
+       LI   R0,>0025
+       LI   R1,25
+       LI   R2,24
+       LI   R3,25
+       LI   R4,72
+       XOP  @VID,0
+
+       BL   @TTYOUT
+       DATA LASTBADPAGE,0
+
+       BL   @PRTHEX2
+       DATA >F112,1
+
+       MOV  @BADPAGESTART,R1
+
+       MOVB @>F112,*R1
+       INC  @BADPAGESTART
+       INC  @BADPAGES
+
+       RTWP
+
+BADPAGESTART  DATA >F200
+
+QUIT
+
+       LI   R0,0
+       LI   R1,1
+       XOP  @VID,0
+
+       MOV  @BADPAGES,R0
+       JEQ  QUIT1        NO BAD PAGES TO LIST
+
+       BL   @TTYOUT
+       DATA BADPAGELIST,0
+
+         BL   @PRTHEX
+         DATA >F200
+BADPAGES DATA 0          NUMBER OF BAD PAGAES
+
+
+QUIT1
+       BLWP @0
+
+BADPAGELIST BYTE >0C   CLEAR SCREEN
+            TEXT 'List of Bad pages detected:'
+            BYTE >0D,>0A,>0D,>0A,0
+
+
+
+CBHF2   DATA >F2F2
+PASSES  DATA 0           Number of passes through all 256 pages
+FLAGFIRSTPASS DATA 0     IF <>0, THEN DO NOT REDRAW BOX UNLESS ERROR ON PAGE
+BADMEM  DATA 0           Flag for partial memory page
+NOPAGE  DATA 0           Flag for returning memory test for 1st work is 8K page
+R0STORE DATA 0
+R1STORE DATA 0
+R2STORE DATA 0
+R3STORE DATA 0
+R4STORE DATA 0
+E8FLAG  DATA 0  FLAG >FFFF IF PAGE >40 IS 0 WAIT STATE FOR PAGE >E8->EF EXT RAM
+PG40FLAG DATA 0 FLAG >FFFF IF PAGE >40 IS PRESENT
+PG3AFLAG DATA 0 FLAG >FFFF IF PAGE >3A IS PRESENT (TIMODE ACTIVE)
+
+
+PFMIDBWM DATA 0          PFM FLAG 0 = EPROM, >FFFF = PFM
+
+TOTALFREESTRING    TEXT '        '
+ZEROWAITSTRING     TEXT '        '
+TOTALINSTALLSTRING TEXT '        '
+
+TOTALFREEPAGES  DATA 0
+ZEROWAITPAGES   DATA 0
+INSTALLEDPAGES  DATA 0
+
+FLOAT1      BSS  8
+FLOAT2      BSS  8
+DESTINATION BSS  8
+
+
+
+ERRORCOUNT  DATA 0
+CBHF0       BYTE >F0
+CBHF1       BYTE >F1
+
+HORIZBAR
+       BYTE >0D,>0A,>0D,>0A,>0D,>0A,>0D,>0A
+       TEXT 'PAGE 0_ 1_ 2_ 3_ 4_ 5_ 6_ 7_ 8_ 9_ A_ B_ C_ D_ E_ F_'
+       BYTE 0
+       EVEN
+
+VERTBAR
+       TEXT '0123456789ABCDEF'
+       BYTE 0
+       EVEN
+
+VERTBAR1
+       TEXT 'PHYSICAL MAP'
+       BYTE 0
+       EVEN
+
+LASTBADPAGE
+       TEXT 'Last Bad Page #: >'
+       BYTE 0
+
+MEMORYDIAGNOSTICS
+       BYTE >1B,>43,>2C,>21
+       TEXT 'Geneve 9640 Memory Diagnostics'
+       BYTE >0D,>0A
+       TEXT '         Version 2.70'
+       BYTE >0D,>0A
+       TEXT '  Copyright 2022 Beery Miller'
+       BYTE >1B,>43,>2F,>21
+CRLF   BYTE >0D,>0A,0
+       EVEN
+
+TOTALPAGES
+       TEXT 'TOTAL PAGES '
+       BYTE >0D,>0A
+       TEXT ' FREE PAGES '
+       BYTE >0D,>0A
+       TEXT ' FAST PAGES '
+       BYTE 0
+       EVEN
+
+ONBOARDDRAM
+       TEXT 'ON-BOARD SRAM 0 WS'
+       BYTE >0D,>0A
+       TEXT 'ON-BOARD DRAM 1 WS'
+       BYTE >0D,>0A
+       TEXT 'EXTERNAL RAM  0 WS'
+       BYTE >0D,>0A
+       TEXT 'EXTERNAL RAM  1 WS'
+       BYTE >0D,>0A
+       TEXT 'PARTIAL PAGE'
+       BYTE >0D,>0A
+       TEXT 'NO RAM FOUND'
+       BYTE >0D,>0A
+       TEXT 'BOOT EPROM/PFM'
+       BYTE 0
+       EVEN
+
+STATUSLINE
+       TEXT '--- STATUS LINE ----'
+       BYTE >0D,>0A
+       TEXT '    ERRORS >'
+       BYTE >0D,>0A
+       TEXT '    PASSES >'
+       BYTE 0
+       EVEN
+
+EXECUTIONPAGEMAP
+       TEXT 'EXECUTION PAGE MAP'
+       BYTE >0D,>0A,>0D,>0A
+       TEXT ' 0000-1FFF'
+       BYTE >0D,>0A
+       TEXT ' 2000-3FFF'
+       BYTE >0D,>0A
+       TEXT ' 4000-5FFF'
+       BYTE >0D,>0A
+       TEXT ' 6000-7FFF'
+       BYTE >0D,>0A
+       TEXT ' 8000-9FFF'
+       BYTE >0D,>0A
+       TEXT ' A000-BFFF'
+       BYTE >0D,>0A
+       TEXT ' C000-DFFF'
+       BYTE >0D,>0A
+       TEXT ' E000-FFFF'
+       BYTE 0
+       EVEN
+
+TOTALCPUMEMORY
+       TEXT 'TOTAL CPU MEMORY'
+       BYTE >0D,>0A
+BYTESTRING
+       TEXT '          BYTES'
+       BYTE 0
+       EVEN
+
+
+
+*-------------------------------------------------------------------------------
+* This may be a bit different, but I got it to work.  Prints the HEX
+* representation starting with the byte pointed to by R3.  R7 contains the
+* number of bytes to print (starting at R3).
+*
+
+PRTHEX MOV  *R11+,R3          get the starting location
+       MOV  *R11+,R7          get the number of bytes to print
+       LI   R0,>27            TTYOUT
+       LI   R1,WS+12          use R6 as the location to print from
+       LI   R2,1              one char to print
+
+PRT2   MOVB *R3+,R5           get the next byte
+       SRL  R5,8              make it a word value
+       CLR  R4                clear R4 for the divide
+       DIV  @SIXTEEN,R4       divide this by sixteen
+       MOVB @HEXDEC(R4),R6    get the ASCII character (pointer to by R4)
+       XOP  @VID,0          print it
+       MOVB @HEXDEC(R5),R6
+       XOP  @VID,0
+       MOV  R7,R6             move R7 (byte value)
+       ANDI R6,>0001          mask all but bit 1
+       JEQ  NOSPACE           if zero, jump (must have been an even byte)
+NOSPACE
+       DEC  R7                any more to do?
+       JNE  PRT2              yup
+       RT                     no, return
+
+PRTHEX2
+       MOV  *R11+,R3          get the starting location
+       MOV  *R11+,R7          get the number of bytes to print
+       LI   R0,>27            TTYOUT
+       LI   R1,BADWS+12       use R6 as the location to print from
+       LI   R2,1              one char to print
+
+PRT22  MOVB *R3+,R5           get the next byte
+       SRL  R5,8              make it a word value
+       CLR  R4                clear R4 for the divide
+       DIV  @SIXTEEN,R4       divide this by sixteen
+       MOVB @HEXDEC(R4),R6    get the ASCII character (pointer to by R4)
+       XOP  @VID,0          print it
+       MOVB @HEXDEC(R5),R6
+       XOP  @VID,0
+       MOV  R7,R6             move R7 (byte value)
+       ANDI R6,>0001          mask all but bit 1
+       JEQ  NOSPACE1          if zero, jump (must have been an even byte)
+NOSPACE1
+       DEC  R7                any more to do?
+       JNE  PRT22             yup
+       RT                     no, return
+
+**************************
+* MDOS write tty routine *
+**************************
+
+TTYOUT MOV  *R11+,R8     get data address
+       MOV  *R11+,R9     get length of data to write
+       MOV  R9,R2        save length in r2 for the ttyout routine
+       LI   R10,WORK     for the move to hi memory
+       MOV  R10,R1       save for the ttyout routine
+TTY1   MOVB *R8+,*R10+   move em to hi memory
+       JEQ  TTY2         if we hit a null
+       DEC  R9           till r3 is zero
+       JNE  TTY1
+TTY2   LI   R0,>0027     do the actual ttyout routine
+       XOP  @VID,0
+       B    *R11
+
+******************************************************
+
+NOMEM
+       TEXT 'Insufficient memory'
+       BYTE 13,10,0
+       EVEN
+
+CLEARSCREEN
+       BYTE >0C,0
+
+KEY    DATA 5
+VID    DATA 6            video xop
+MEM    DATA 7            memory manager xop
+MATH   DATA 10           math xop
+
+
+WORK   EQU >E000
+
+SIXTEEN     DATA 16
+
+HEXDEC TEXT '0123456789ABCDEF'
+
+
+BOXCOORDINATES
+       DATA A2,A3,A4,A5,A6,A7,A8,A9,A10,A11,A12,A13,A14,A15,A16,A17
+       DATA B2,B3,B4,B5,B6,B7,B8,B9,B10,B11,B12,B13,B14,B15,B16,B17
+       DATA C2,C3,C4,C5,C6,C7,C8,C9,C10,C11,C12,C13,C14,C15,C16,C17
+       DATA D2,D3,D4,D5,D6,D7,D8,D9,D10,D11,D12,D13,D14,D15,D16,D17
+       DATA E2,E3,E4,E5,E6,E7,E8,E9,E10,E11,E12,E13,E14,E15,E16,E17
+       DATA F2,F3,F4,F5,F6,F7,F8,F9,F10,F11,F12,F13,F14,F15,F16,F17
+       DATA G2,G3,G4,G5,G6,G7,G8,G9,G10,G11,G12,G13,G14,G15,G16,G17
+       DATA H2,H3,H4,H5,H6,H7,H8,H9,H10,H11,H12,H13,H14,H15,H16,H17
+       DATA I2,I3,I4,I5,I6,I7,I8,I9,I10,I11,I12,I13,I14,I15,I16,I17
+       DATA J2,J3,J4,J5,J6,J7,J8,J9,J10,J11,J12,J13,J14,J15,J16,J17
+       DATA K2,K3,K4,K5,K6,K7,K8,K9,K10,K11,K12,K13,K14,K15,K16,K17
+       DATA L2,L3,L4,L5,L6,L7,L8,L9,L10,L11,L12,L13,L14,L15,L16,L17
+       DATA M2,M3,M4,M5,M6,M7,M8,M9,M10,M11,M12,M13,M14,M15,M16,M17
+       DATA N2,N3,N4,N5,N6,N7,N8,N9,N10,N11,N12,N13,N14,N15,N16,N17
+       DATA O2,O3,O4,O5,O6,O7,O8,O9,O10,O11,O12,O13,O14,O15,O16,O17
+       DATA P2,P3,P4,P5,P6,P7,P8,P9,P10,P11,P12,P13,P14,P15,P16,P17
+
+
+DRAMSETUP
+       DATA Q1,Q2,Q3,Q4,Q5,Q6,Q7
+
+Q1     DATA 351,24,17,7,>0A01
+Q2     DATA 351,32,17,7,>0C01
+Q3     DATA 351,40,17,7,>0401
+Q4     DATA 351,48,17,7,>0701
+Q5     DATA 351,56,17,7,>0F01
+Q6     DATA 351,64,17,7,>0601
+Q7     DATA 351,72,17,7,>0D01
+
+
+RED     DATA >0601                           No page available
+WHITE   DATA >0F01                           Partial page
+YELLOW  DATA >0A01
+MAGENTA DATA >0D01
+
+A2     DATA 44,40,17,7,>0C01,>0000   1st row
+A3     DATA 44,48,17,7,>0C01,>0001
+A4     DATA 44,56,17,7,>0C01,>0002
+A5     DATA 44,64,17,7,>0C01,>0003
+A6     DATA 44,72,17,7,>0C01,>0004
+A7     DATA 44,80,17,7,>0C01,>0005
+A8     DATA 44,88,17,7,>0C01,>0006
+A9     DATA 44,96,17,7,>0C01,>0007
+A10    DATA 44,104,17,7,>0C01,>0008
+A11    DATA 44,112,17,7,>0C01,>0009
+A12    DATA 44,120,17,7,>0C01,>000A
+A13    DATA 44,128,17,7,>0C01,>000B
+A14    DATA 44,136,17,7,>0C01,>000C
+A15    DATA 44,144,17,7,>0C01,>000D
+A16    DATA 44,152,17,7,>0C01,>000E
+A17    DATA 44,160,17,7,>0C01,>000F
+
+B2     DATA 62,40,17,7,>0C01,>0010  2nd row
+B3     DATA 62,48,17,7,>0C01,>0011
+B4     DATA 62,56,17,7,>0C01,>0012
+B5     DATA 62,64,17,7,>0C01,>0013
+B6     DATA 62,72,17,7,>0C01,>0014
+B7     DATA 62,80,17,7,>0C01,>0015
+B8     DATA 62,88,17,7,>0C01,>0016
+B9     DATA 62,96,17,7,>0C01,>0017
+B10    DATA 62,104,17,7,>0C01,>0018
+B11    DATA 62,112,17,7,>0C01,>0019
+B12    DATA 62,120,17,7,>0C01,>001A
+B13    DATA 62,128,17,7,>0C01,>001B
+B14    DATA 62,136,17,7,>0C01,>001C
+B15    DATA 62,144,17,7,>0C01,>001D
+B16    DATA 62,152,17,7,>0C01,>001E
+B17    DATA 62,160,17,7,>0C01,>001F
+
+C2     DATA 80,40,17,7,>0C01,>0020   3rd row
+C3     DATA 80,48,17,7,>0C01,>0021
+C4     DATA 80,56,17,7,>0C01,>0022
+C5     DATA 80,64,17,7,>0C01,>0023
+C6     DATA 80,72,17,7,>0C01,>0024
+C7     DATA 80,80,17,7,>0C01,>0025
+C8     DATA 80,88,17,7,>0C01,>0026
+C9     DATA 80,96,17,7,>0C01,>0027
+C10    DATA 80,104,17,7,>0C01,>0028
+C11    DATA 80,112,17,7,>0C01,>0029
+C12    DATA 80,120,17,7,>0C01,>002A
+C13    DATA 80,128,17,7,>0C01,>002B
+C14    DATA 80,136,17,7,>0C01,>002C
+C15    DATA 80,144,17,7,>0C01,>002D
+C16    DATA 80,152,17,7,>0C01,>002E
+C17    DATA 80,160,17,7,>0C01,>002F
+
+D2     DATA 98,40,17,7,>0C01,>0030   4th row
+D3     DATA 98,48,17,7,>0C01,>0031
+D4     DATA 98,56,17,7,>0C01,>0032
+D5     DATA 98,64,17,7,>0C01,>0033
+D6     DATA 98,72,17,7,>0C01,>0034
+D7     DATA 98,80,17,7,>0C01,>0035
+D8     DATA 98,88,17,7,>0C01,>0036
+D9     DATA 98,96,17,7,>0C01,>0037
+D10    DATA 98,104,17,7,>0C01,>0038
+D11    DATA 98,112,17,7,>0C01,>0039
+D12    DATA 98,120,17,7,>0C01,>003A
+D13    DATA 98,128,17,7,>0C01,>003B
+D14    DATA 98,136,17,7,>0C01,>003C
+D15    DATA 98,144,17,7,>0C01,>003D
+D16    DATA 98,152,17,7,>0C01,>003E
+D17    DATA 98,160,17,7,>0C01,>003F
+
+E2     DATA 116,40,17,7,>0701,>0040   5th row
+E3     DATA 116,48,17,7,>0701,>0041
+E4     DATA 116,56,17,7,>0701,>0042
+E5     DATA 116,64,17,7,>0701,>0043
+E6     DATA 116,72,17,7,>0701,>0044
+E7     DATA 116,80,17,7,>0701,>0045
+E8     DATA 116,88,17,7,>0701,>0046
+E9     DATA 116,96,17,7,>0701,>0047
+E10    DATA 116,104,17,7,>0701,>0048
+E11    DATA 116,112,17,7,>0701,>0049
+E12    DATA 116,120,17,7,>0701,>004A
+E13    DATA 116,128,17,7,>0701,>004B
+E14    DATA 116,136,17,7,>0701,>004C
+E15    DATA 116,144,17,7,>0701,>004D
+E16    DATA 116,152,17,7,>0701,>004E
+E17    DATA 116,160,17,7,>0701,>004F
+
+F2     DATA 134,40,17,7,>0701,>0050   6th row
+F3     DATA 134,48,17,7,>0701,>0051
+F4     DATA 134,56,17,7,>0701,>0052
+F5     DATA 134,64,17,7,>0701,>0053
+F6     DATA 134,72,17,7,>0701,>0054
+F7     DATA 134,80,17,7,>0701,>0055
+F8     DATA 134,88,17,7,>0701,>0056
+F9     DATA 134,96,17,7,>0701,>0057
+F10    DATA 134,104,17,7,>0701,>0058
+F11    DATA 134,112,17,7,>0701,>0059
+F12    DATA 134,120,17,7,>0701,>005A
+F13    DATA 134,128,17,7,>0701,>005B
+F14    DATA 134,136,17,7,>0701,>005C
+F15    DATA 134,144,17,7,>0701,>005D
+F16    DATA 134,152,17,7,>0701,>005E
+F17    DATA 134,160,17,7,>0701,>005F
+
+G2     DATA 152,40,17,7,>0701,>0060   7th row
+G3     DATA 152,48,17,7,>0701,>0061
+G4     DATA 152,56,17,7,>0701,>0062
+G5     DATA 152,64,17,7,>0701,>0063
+G6     DATA 152,72,17,7,>0701,>0064
+G7     DATA 152,80,17,7,>0701,>0065
+G8     DATA 152,88,17,7,>0701,>0066
+G9     DATA 152,96,17,7,>0701,>0067
+G10    DATA 152,104,17,7,>0701,>0068
+G11    DATA 152,112,17,7,>0701,>0069
+G12    DATA 152,120,17,7,>0701,>006A
+G13    DATA 152,128,17,7,>0701,>006B
+G14    DATA 152,136,17,7,>0701,>006C
+G15    DATA 152,144,17,7,>0701,>006D
+G16    DATA 152,152,17,7,>0701,>006E
+G17    DATA 152,160,17,7,>0701,>006F
+
+H2     DATA 170,40,17,7,>0701,>0070   8th row
+H3     DATA 170,48,17,7,>0701,>0071
+H4     DATA 170,56,17,7,>0701,>0072
+H5     DATA 170,64,17,7,>0701,>0073
+H6     DATA 170,72,17,7,>0701,>0074
+H7     DATA 170,80,17,7,>0701,>0075
+H8     DATA 170,88,17,7,>0701,>0076
+H9     DATA 170,96,17,7,>0701,>0077
+H10    DATA 170,104,17,7,>0701,>0078
+H11    DATA 170,112,17,7,>0701,>0079
+H12    DATA 170,120,17,7,>0701,>007A
+H13    DATA 170,128,17,7,>0701,>007B
+H14    DATA 170,136,17,7,>0701,>007C
+H15    DATA 170,144,17,7,>0701,>007D
+H16    DATA 170,152,17,7,>0701,>007E
+H17    DATA 170,160,17,7,>0701,>007F
+
+I2     DATA 188,40,17,7,>0701,>0080    9th row
+I3     DATA 188,48,17,7,>0701,>0081
+I4     DATA 188,56,17,7,>0701,>0082
+I5     DATA 188,64,17,7,>0701,>0083
+I6     DATA 188,72,17,7,>0701,>0084
+I7     DATA 188,80,17,7,>0701,>0085
+I8     DATA 188,88,17,7,>0701,>0086
+I9     DATA 188,96,17,7,>0701,>0087
+I10    DATA 188,104,17,7,>0701,>0088
+I11    DATA 188,112,17,7,>0701,>0089
+I12    DATA 188,120,17,7,>0701,>008A
+I13    DATA 188,128,17,7,>0701,>008B
+I14    DATA 188,136,17,7,>0701,>008C
+I15    DATA 188,144,17,7,>0701,>008D
+I16    DATA 188,152,17,7,>0701,>008E
+I17    DATA 188,160,17,7,>0701,>008F
+
+J2     DATA 206,40,17,7,>0701,>0090    10th row
+J3     DATA 206,48,17,7,>0701,>0091
+J4     DATA 206,56,17,7,>0701,>0092
+J5     DATA 206,64,17,7,>0701,>0093
+J6     DATA 206,72,17,7,>0701,>0094
+J7     DATA 206,80,17,7,>0701,>0095
+J8     DATA 206,88,17,7,>0701,>0096
+J9     DATA 206,96,17,7,>0701,>0097
+J10    DATA 206,104,17,7,>0701,>0098
+J11    DATA 206,112,17,7,>0701,>0099
+J12    DATA 206,120,17,7,>0701,>009A
+J13    DATA 206,128,17,7,>0701,>009B
+J14    DATA 206,136,17,7,>0701,>009C
+J15    DATA 206,144,17,7,>0701,>009D
+J16    DATA 206,152,17,7,>0701,>009E
+J17    DATA 206,160,17,7,>0701,>009F
+
+K2     DATA 224,40,17,7,>0701,>00A0    11th row
+K3     DATA 224,48,17,7,>0701,>00A1
+K4     DATA 224,56,17,7,>0701,>00A2
+K5     DATA 224,64,17,7,>0701,>00A3
+K6     DATA 224,72,17,7,>0701,>00A4
+K7     DATA 224,80,17,7,>0701,>00A5
+K8     DATA 224,88,17,7,>0701,>00A6
+K9     DATA 224,96,17,7,>0701,>00A7
+K10    DATA 224,104,17,7,>0701,>00A8
+K11    DATA 224,112,17,7,>0701,>00A9
+K12    DATA 224,120,17,7,>0701,>00AA
+K13    DATA 224,128,17,7,>0701,>00AB
+K14    DATA 224,136,17,7,>0701,>00AC
+K15    DATA 224,144,17,7,>0701,>00AD
+K16    DATA 224,152,17,7,>0701,>00AE
+K17    DATA 224,160,17,7,>0701,>00AF
+
+L2     DATA 242,40,17,7,>0701,>00B0    12th row
+L3     DATA 242,48,17,7,>0701,>00B1
+L4     DATA 242,56,17,7,>0701,>00B2
+L5     DATA 242,64,17,7,>0701,>00B3
+L6     DATA 242,72,17,7,>0701,>00B4
+L7     DATA 242,80,17,7,>0701,>00B5
+L8     DATA 242,88,17,7,>0701,>00B6
+L9     DATA 242,96,17,7,>0701,>00B7
+L10    DATA 242,104,17,7,>0701,>00B8
+L11    DATA 242,112,17,7,>0701,>00B9
+L12    DATA 242,120,17,7,>0701,>00BA
+L13    DATA 242,128,17,7,>0701,>00BB
+L14    DATA 242,136,17,7,>0701,>00BC
+L15    DATA 242,144,17,7,>0701,>00BD
+L16    DATA 242,152,17,7,>0701,>00BE
+L17    DATA 242,160,17,7,>0701,>00BF
+
+M2     DATA 260,40,17,7,>0701,>00C0   13th row
+M3     DATA 260,48,17,7,>0701,>00C1
+M4     DATA 260,56,17,7,>0701,>00C2
+M5     DATA 260,64,17,7,>0701,>00C3
+M6     DATA 260,72,17,7,>0701,>00C4
+M7     DATA 260,80,17,7,>0701,>00C5
+M8     DATA 260,88,17,7,>0701,>00C6
+M9     DATA 260,96,17,7,>0701,>00C7
+M10    DATA 260,104,17,7,>0701,>00C8
+M11    DATA 260,112,17,7,>0701,>00C9
+M12    DATA 260,120,17,7,>0701,>00CA
+M13    DATA 260,128,17,7,>0701,>00CB
+M14    DATA 260,136,17,7,>0701,>00CC
+M15    DATA 260,144,17,7,>0701,>00CD
+M16    DATA 260,152,17,7,>0701,>00CE
+M17    DATA 260,160,17,7,>0701,>00CF
+
+N2     DATA 278,40,17,7,>0701,>00D0   14th row
+N3     DATA 278,48,17,7,>0701,>00D1
+N4     DATA 278,56,17,7,>0701,>00D2
+N5     DATA 278,64,17,7,>0701,>00D3
+N6     DATA 278,72,17,7,>0701,>00D4
+N7     DATA 278,80,17,7,>0701,>00D5
+N8     DATA 278,88,17,7,>0701,>00D6
+N9     DATA 278,96,17,7,>0701,>00D7
+N10    DATA 278,104,17,7,>0701,>00D8
+N11    DATA 278,112,17,7,>0701,>00D9
+N12    DATA 278,120,17,7,>0701,>00DA
+N13    DATA 278,128,17,7,>0701,>00DB
+N14    DATA 278,136,17,7,>0701,>00DC
+N15    DATA 278,144,17,7,>0701,>00DD
+N16    DATA 278,152,17,7,>0701,>00DE
+N17    DATA 278,160,17,7,>0701,>00DF
+
+O2     DATA 296,40,17,7,>0701,>00E0   15th row
+O3     DATA 296,48,17,7,>0701,>00E1
+O4     DATA 296,56,17,7,>0701,>00E2
+O5     DATA 296,64,17,7,>0701,>00E3
+O6     DATA 296,72,17,7,>0701,>00E4
+O7     DATA 296,80,17,7,>0701,>00E5
+O8     DATA 296,88,17,7,>0701,>00E6
+O9     DATA 296,96,17,7,>0701,>00E7
+O10    DATA 296,104,17,7,>0A01,>00E8
+O11    DATA 296,112,17,7,>0A01,>00E9
+O12    DATA 296,120,17,7,>0A01,>00EA
+O13    DATA 296,128,17,7,>0A01,>00EB
+O14    DATA 296,136,17,7,>0A01,>00EC
+O15    DATA 296,144,17,7,>0A01,>00ED
+O16    DATA 296,152,17,7,>0A01,>00EE
+O17    DATA 296,160,17,7,>0A01,>00EF
+
+P2     DATA 314,40,17,7,>0601,>00F0   16th row
+P3     DATA 314,48,17,7,>0601,>00F1
+P4     DATA 314,56,17,7,>0D01,>00F2
+P5     DATA 314,64,17,7,>0D01,>00F3
+P6     DATA 314,72,17,7,>0D01,>00F4
+P7     DATA 314,80,17,7,>0D01,>00F5
+P8     DATA 314,88,17,7,>0D01,>00F6
+P9     DATA 314,96,17,7,>0D01,>00F7
+P10    DATA 314,104,17,7,>0D01,>00F8
+P11    DATA 314,112,17,7,>0D01,>00F9
+P12    DATA 314,120,17,7,>0D01,>00FA
+P13    DATA 314,128,17,7,>0D01,>00FB
+P14    DATA 314,136,17,7,>0D01,>00FC
+P15    DATA 314,144,17,7,>0D01,>00FD
+P16    DATA 314,152,17,7,>0D01,>00FE
+P17    DATA 314,160,17,7,>0D01,>00FF
+
+* LOGO IS LAID OUT LIKE THIS:
+*
+* 128 129 129 129 129 129 130
+* 131   9   6   4   0   N   E   W   S
+* 132 134 136
+* 133 135
+
+
+LOGO
+       BYTE >1B,>43,>2A,>21
+       BYTE 228,229,229,229,229,229,229,229,229,229,230,>0D,>0A
+       BYTE 231
+       BYTE >1B,>43,>2F,>21
+       BYTE '9','6','4','0',' ','N','e','w','s',>0D,>0A
+       BYTE >1B,>43,>2A,>21
+       BYTE 232,234,236,>0D,>0A
+       BYTE 233,235,>0D,>0A
+       BYTE >1B,>43,>2F,>21
+       BYTE 0
+       EVEN
+
+
+
+       COPY "PFMID"      must be located in memory below >2000
+       COPY "SUB1"       Box routine
+       COPY "MEMSCAN"    Test mapped memory page
+       COPY "PAGEMAP"
+       COPY "PAGESPEED"  Memory speed tester, 0/1 wait states
+       COPY "CPUVDP-S"   CPUVDP Transfer Routine from Ron Walters
+       COPY "SPLASH-SCN" MEMEX Splash Screen
+
+*---------------------------------------------------------
+       END
+

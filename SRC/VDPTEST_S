@@ -1,0 +1,271 @@
+* VDP RAM CHECK
+* (C) 1990 BY ALEXANDER HULPKE
+
+       DEF  START
+
+TEWO   EQU  >5AA5
+TEWO2  EQU  >A55A
+
+MYWS   BSS  32
+BLWS   BSS  32
+BANKAD DATA 0
+TEBU   BSS  40
+
+TITEL  TEXT '9938 VDP RAM check by A.H.'
+
+CHKTXT TEXT 'Test '
+TENUM  TEXT 'x '
+
+PASTXT TEXT 'passed'
+FAITXT TEXT 'failed'
+
+WHOTXT TEXT 'finished-press CTRL-SHFT-SHFT'
+
+       EVEN
+
+VDPRD  EQU  >8800
+VDPWD  EQU  >8C00
+VDPWA  EQU  >8C02
+
+*                        Verbesserte Support-Routinen
+*                        fuer 128k VDP-Ram
+VSBW   DATA BLWS,VSBW1
+VMBW   DATA BLWS,VMBW1
+VSBR   DATA BLWS,VSBR1
+VMBR   DATA BLWS,VMBR1
+VWTR   DATA BLWS,VWTR1
+*
+VSBW1  BL   @VWAUB
+       MOVB 1,@VDPWD     Byte schreiben
+       RTWP
+*
+VMBW1  BL   @VWAUB
+VMWL   MOVB *1+,@VDPWD   Bytes schreiben
+       DEC  2
+       JNE  VMWL
+       RTWP
+*
+VSBR1  BL   @VRAUB
+G      MOVB @VDPRD,@2(13)   Byte lesen
+       RTWP
+*
+VMBR1  BL   @VRAUB
+VMRL   MOVB @VDPRD,*1+    Bytes lesen
+       DEC  2
+       JNE  VMRL
+       RTWP
+*
+VWAUB  LI   2,>4000      Bit fuer VDP-Write
+       JMP  VAUB
+VRAUB  CLR  2
+VAUB
+       MOV *13,0
+       MOV 0,1
+       ANDI 1,>3FFF      GUELTIGE BITS MASKIEREN
+       SRL  0,6          BANK WAEHLEN
+       ANDI 0,>0300
+       AB   @BANKAD,0    Bank Offset addieren
+       MOVB 0,@VDPWA
+       LI   0,>8E00
+       MOVB 0,@VDPWA
+       SOC  2,1
+       MOVB @BLWS+3,@VDPWA    ADRESSE SCHREIBEN
+       MOVB 1,@VDPWA
+       MOV  @2(13),1     R1&
+       MOV  @4(13),2     R2 uebertragen
+       RT
+*
+VWTR1  MOV  *13,0
+       MOVB @1(13),@VDPWA
+       ORI  0,>8000
+       MOVB 0,@VDPWA
+       RTWP
+
+START
+       LWPI MYWS
+       CLR  @BANKAD
+       CLR  0
+       LI   1,ENTE
+       LI   2,16384
+       BLWP @VMBR
+*
+       LI   0,>000E
+       BLWP @VWTR
+       LI   0,>0100
+       BLWP @VWTR
+
+       LI   3,>0400
+*
+       LI   9,TEBU
+
+       LI   13,2
+BETELO
+       LI   4,TEWO
+       CLR  5
+       CLR  6
+       BL   @TEST
+*
+       CLR  4
+       LI   5,TEWO2
+       BL    @TEST
+
+       CLR  5
+       LI   6,TEWO
+       BL   @TEST
+
+       LI   0,>000A
+       BLWP @VWTR
+       DEC  13
+       JNE  BETELO
+
+       LI   0,>0E00
+       BLWP @VWTR
+       LI   0,>0000
+       BLWP @VWTR
+
+       CLR  @BANKAD
+       CLR  0
+       LI   1,ENTE
+       LI   2,16384
+       BLWP @VMBW
+
+       LI   0,>01E0
+       BLWP @VWTR
+
+       LI   0,3
+       LI   1,TITEL
+       LI   2,26
+       BLWP @VMBW
+
+       LI   0,65
+       CLR  8
+       LI   9,TEBU
+       LI   3,18
+MESSLO
+       LI   1,83
+       S    3,1
+       SLA  1,8
+       MOVB 1,@TENUM
+       LI   1,CHKTXT
+       LI   2,7
+       BLWP @VMBW
+
+       LI   1,FAITXT
+       MOV  *9+,4
+       JEQ  FAILED
+       LI   1,PASTXT
+       INC  8
+FAILED LI   2,6
+WRILO  MOVB *1+,@VDPWD
+       DEC  2
+       JNE  WRILO
+       AI   0,32
+       DEC  3
+       JNE  MESSLO
+
+       AI   0,64
+       LI   1,WHOTXT
+       LI   2,29
+       BLWP @VMBW
+
+       LIMI 2
+FINI   JMP  $
+*
+TEST   MOV  11,10
+       CLR  @BANKAD
+       LI   0,>1000
+       MOV  4,1
+       LI   2,61440   65536-4096
+       BL   @CLRBA
+*
+       MOVB 3,@BANKAD
+       CLR  0
+       MOV  5,1
+       CLR  2
+       BL   @CLRBA
+*
+       LI   0,>2D40
+       BLWP @VWTR
+       CLR  0
+       MOV  6,1
+       CLR  2
+       BL   @HLRBA
+       LI   0,>2D00
+       BLWP @VWTR
+*
+* JETZT TESTEN
+
+       CLR  @BANKAD
+       LI   0,>1000
+       LI   2,61440
+       MOV  4,7
+       BL   @CHECK
+
+       MOV  3,@BANKAD
+       CLR  0
+       MOV  5,7
+       CLR  2
+       BL   @CHECK
+
+       LI   0,>2D40
+       BLWP @VWTR
+       CLR  0
+       MOV  6,7
+       CLR  2
+       BL   @HHECK
+       LI   0,>2D00
+       BLWP @VWTR
+*
+       B    *10
+*
+CLRBA  BLWP @VSBW
+       DEC  2
+CLILO  SWPB 1
+       MOVB 1,@VDPWD
+       DEC  2
+       JNE  CLILO
+       RT
+*
+CHECK  CLR  8
+       BLWP @VSBR
+       CB   7,1
+       JNE  AU
+       DEC  2
+CHELO  SWPB 7
+       CB   @VDPRD,7
+       JNE  AU
+       DEC  2
+       JNE  CHELO
+       SETO 8
+AU     MOV  8,*9+
+       RT
+*
+HLRBA  BLWP @VSBW        SAVE FOR HI BANKS
+       MOVB 1,@VDPWD
+       DEC  2
+HLILO  SWPB 1
+       MOVB 1,@VDPWD
+       MOVB 1,@VDPWD
+       DEC  2
+       JNE  HLILO
+       RT
+*
+HHECK  CLR  8
+       BLWP @VSBR
+       MOVB @VDPRD,1
+       CB   7,1
+       JNE  HU
+       DEC  2
+HHELO  SWPB 7
+       MOVB @VDPRD,0
+       CB   @VDPRD,7
+       JNE  HU
+       DEC  2
+       JNE  HHELO
+       SETO 8
+HU     MOV  8,*9+
+       RT
+*
+ENTE   END
+
+

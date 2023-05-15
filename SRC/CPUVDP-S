@@ -1,0 +1,148 @@
+*      UNL
+*           CPUVDP(VPAGE,XADR,YADR,NX,NY,BUFADR,MPAGE)
+*
+*           EXTERNAL CPU TO VDP WRITE SUBROUTINE
+*           by Ron Walters   9-28-89  Ver .90
+*
+*           Copyright 1989, Ron G. Walters
+*
+*      R1   VPAGE  = VDP PAGE
+*      R2   XADR   = X address, upper left corner (0-255)
+*      R3   YADR   = Y address, upper left corner (0-255)
+*      R4   NX     = no. of horiz. pixels (bytes)
+*      R5   NY     = no. of vert. pixels (bytes)
+*      R6   BUFADR = WORD BUFFER address
+*      R7   MPAGE  = MEMORY PAGE
+*
+CPUVDP
+
+*
+*      LIMI 0            turn off interrupts
+       MOV  @VPAGE,R1
+       MOV  @XADR,R2
+       MOV  @YADR,R3
+       MOV  @NX,R4
+       MOV  @NY,R5
+       MOV  @BUFADR,R6
+*      MOV  *R6,R6       get BUFF ADDRESS
+*
+* SET UP MAPPER
+*
+       MOV  R6,R0        get BUFADR for execution page
+       SRL  R0,13        put page in low nibble
+       AI   R0,>F110     add to mapper base
+       MOV  R0,@REG      save reg. no. for restore on exit
+*      MOVB *R0,@MAP     save reg. content for restore on exit
+*      MOV  @MPAGE,R7    get page adrs.
+*      SWPB R7           move to upper byte
+*      MOVB R7,*R0       place in mapper
+
+*
+*
+* INITIALIZE -----------------------------------
+*
+       LI   R0,>00AD     PREPARE R45 FOR VRAM
+       MOVB R0,@>F102    VRAM
+       SWPB R0
+       MOVB R0,@>F102    to R45
+*
+       ANDI R1,>0001     mask to one bit
+       SRC  R1,6         move page to MSByte
+*
+       ANDI R3,>00FF     mask to byte
+       SLA  R3,2         place Y7 & Y6 in hi byte
+       AB   R3,R1        combine with page
+*
+       ANDI R2,>00FF     mask to byte
+       SWPB R2           move to hi byte
+*
+       MOVB R1,@>F102    LOAD BANK ADDRESS A15-A14
+       MOVB @BNKR,@>F102 TO R14
+*
+       MOVB R2,@>F102    X START TO PORT #1
+       SWPB R3           move Y5 - Y0 to hi byte
+       SRL  R3,2         right justify
+       AI   R3,>4000     set write bit
+       MOVB R3,@>F102    Y5-Y0 START TO PORT #1
+*
+* SET UP LOOPS ---------------------------------
+*
+*      MOV  *R4,R4       get X count
+*      MOV  *R5,R5       get Y count
+       SRL  R4,5         DIVIDE NX BY 32 AND:
+       MOV  R4,R7        SET UP COUNTER R7
+*
+LEEP   MOVB *R6+,@>F100  DO 32 WRITES TO VDP
+       MOVB *R6+,@>F100
+       MOVB *R6+,@>F100
+       MOVB *R6+,@>F100
+       MOVB *R6+,@>F100
+       MOVB *R6+,@>F100
+       MOVB *R6+,@>F100
+       MOVB *R6+,@>F100
+       MOVB *R6+,@>F100
+       MOVB *R6+,@>F100
+       MOVB *R6+,@>F100
+       MOVB *R6+,@>F100
+       MOVB *R6+,@>F100
+       MOVB *R6+,@>F100
+       MOVB *R6+,@>F100
+       MOVB *R6+,@>F100
+       MOVB *R6+,@>F100
+       MOVB *R6+,@>F100
+       MOVB *R6+,@>F100
+       MOVB *R6+,@>F100
+       MOVB *R6+,@>F100
+       MOVB *R6+,@>F100
+       MOVB *R6+,@>F100
+       MOVB *R6+,@>F100
+       MOVB *R6+,@>F100
+       MOVB *R6+,@>F100
+       MOVB *R6+,@>F100
+       MOVB *R6+,@>F100
+       MOVB *R6+,@>F100
+       MOVB *R6+,@>F100
+       MOVB *R6+,@>F100
+       MOVB *R6+,@>F100
+       DEC  R7
+       JNE  LEEP
+*
+*  START NEW LINE ------------------------------
+*
+       MOV  R4,R7        reset counter
+       AI   R3,>0100     increment Y address
+       CI   R3,>7FFF     maximum Y5 - Y0 plus write bit
+       JLE  NCARRY       was there a carry
+       AI   R1,>0100     set-up VRAM address for R14
+       LI   R3,>4000     reset VRAM address 2nd byte (first,R2 is unchanged)
+*
+NCARRY MOVB R1,@>F102    LOAD BANK ADDRESS Y7,Y6 & write bit
+       MOVB @BNKR,@>F102 TO R14
+       MOVB R2,@>F102    Reset X address
+       MOVB R3,@>F102    Next Y5 - Y0
+*
+       DEC  R5           decrement line counter
+       JNE  LEEP         DO NEXT LINE
+       LIMI 2            turn interrupts back on
+*
+*      MOV  @REG,R0      get map register no.
+*      MOVB @MAP,*R0     restore mapper
+
+*
+       B    *R11
+
+BASEAD BSS  2            caller's R3
+RETUAD BSS  2            return addresss
+VPAGE  BSS  2            VDP Page
+XADR   BSS  2            VDP X location (0 - 255)
+YADR   BSS  2            VDP Y location (0 - 255)
+NX     BSS  2            No. of pixels in X direction
+NY     BSS  2            No. of pixels in Y direction
+BUFADR BSS  2            Buffer address
+MPAGE  BSS  2            memory page
+MAP    BSS  2            memory page
+REG    BSS  2            map register no.
+COLOR  BSS  2            shadow color address
+BNKR   DATA >8E00        VDP bank register
+
+
